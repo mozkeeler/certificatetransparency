@@ -41,12 +41,15 @@ func (f EntriesFile) Count() (count uint64, err error) {
 	return
 }
 
-func (f EntriesFile) readEntries(entries chan<- EntryAndPosition) error {
+func (f EntriesFile) readEntries(entries chan<- EntryAndPosition, limit uint64) error {
 	defer close(entries)
 	var offset int64
 
 	index := uint64(0)
 	for {
+		if limit != 0 && index >= limit {
+			break
+		}
 		var zLen uint32
 		if err := binary.Read(f, binary.LittleEndian, &zLen); err != nil {
 			if err == io.EOF {
@@ -60,6 +63,7 @@ func (f EntriesFile) readEntries(entries chan<- EntryAndPosition) error {
 			return err
 		}
 
+		// Sends the next entry through the channel to one of the mapWorkers
 		entries <- EntryAndPosition{
 			Index:  index,
 			Offset: offset,
@@ -74,9 +78,11 @@ func (f EntriesFile) readEntries(entries chan<- EntryAndPosition) error {
 	return nil
 }
 
-func mapWorker(f func(*EntryAndPosition, error), entries <-chan EntryAndPosition, wg *sync.WaitGroup) {
-	defer wg.Done()
 
+func mapWorker(f func(*EntryAndPosition, error), entries <-chan EntryAndPosition, wg *sync.WaitGroup) {
+	// Call wg.Done right before returning
+	defer wg.Done()
+	// entries : channel
 	for ent := range entries {
 		err := ent.Parse()
 		f(&ent, err)
@@ -87,8 +93,9 @@ func mapWorker(f func(*EntryAndPosition, error), entries <-chan EntryAndPosition
 // not be processed in order. Each entry is represented with an
 // EntryAndPosition and, optionally, a parse error. If a parse error is
 // provided, the Entry member of the EntryAndPosition will be nil.
-func (f EntriesFile) Map(mapFunc func(*EntryAndPosition, error)) error {
+func (f EntriesFile) Map(mapFunc func(*EntryAndPosition, error), limit uint64) error {
 	wg := new(sync.WaitGroup)
+	// Allocate unbuffered channel with type EntryAndPosition
 	entries := make(chan EntryAndPosition)
 
 	for i := 0; i < runtime.NumCPU(); i++ {
@@ -96,7 +103,8 @@ func (f EntriesFile) Map(mapFunc func(*EntryAndPosition, error)) error {
 		go mapWorker(mapFunc, entries, wg)
 	}
 
-	err := f.readEntries(entries)
+	err := f.readEntries(entries, limit)
+	// Wait on all of the workers to finish before being done
 	wg.Wait()
 
 	return err
@@ -197,7 +205,7 @@ func (f EntriesFile) HashTree(status chan<- OperationStatus, count uint64) (outp
 		wg.Done()
 	}()
 
-	if err = f.readEntries(entries); err != nil {
+	if err = f.readEntries(entries, 0); err != nil {
 		return
 	}
 	wg.Wait()
@@ -228,6 +236,7 @@ type Entry struct {
 
 // EntryAndPosition represents a single entry in an entries file.
 type EntryAndPosition struct {
+	// Index. If limit != 0, close channel and stop worker if Index >= limit.
 	Index uint64
 	// Offset contains the byte offset from the beginning of the file for
 	// this entry.
