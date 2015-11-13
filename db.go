@@ -306,14 +306,18 @@ func parseEntry(leafData, extraData []byte) (*Entry, error) {
 		}
 		entry.PreCertIssuerHash = x[:32]
 		x = x[32:]
-		if len(x) < 2 {
+		if len(x) < 3 {
 			return nil, errors.New("ct: truncated entry")
 		}
-		l := int(x[0])<<8 | int(x[1])
+		l := int(x[0])<<16 |
+			int(x[1])<<8 |
+			int(x[2])
+		x = x[3:]
 		if len(x) < l {
 			return nil, errors.New("ct: truncated entry")
 		}
 		entry.TBSCert = x[:l]
+		x = x[l:]
 	default:
 		return nil, errors.New("ct: unknown entry type")
 	}
@@ -321,27 +325,41 @@ func parseEntry(leafData, extraData []byte) (*Entry, error) {
 	x = extraData
 	if len(x) > 0 {
 		if len(x) < 3 {
-			return nil, errors.New("ct: extra data truncated")
+			return nil, errors.New("ct: extra data truncated reading first length")
 		}
 		l := int(x[0])<<16 | int(x[1])<<8 | int(x[2])
 		x = x[3:]
 
-		if l != len(x) {
-			return nil, errors.New("ct: extra data truncated")
+		if len(x) < l {
+			return nil, errors.New("ct: extra data truncated reading first certificate")
 		}
+		entry.ExtraCerts = append(entry.ExtraCerts, x[:l])
+		x = x[l:]
 
-		for len(x) > 0 {
+		if len(x) > 0 {
 			if len(x) < 3 {
-				return nil, errors.New("ct: extra data truncated")
+				return nil, errors.New("ct: extra data truncated reading remaining entire length")
 			}
 			l := int(x[0])<<16 | int(x[1])<<8 | int(x[2])
 			x = x[3:]
 
-			if l > len(x) {
-				return nil, errors.New("ct: extra data truncated")
+			if l != len(x) {
+				return nil, errors.New("ct: extra data truncated checking remaining length")
 			}
-			entry.ExtraCerts = append(entry.ExtraCerts, x[:l])
-			x = x[l:]
+
+			for len(x) > 0 {
+				if len(x) < 3 {
+					return nil, errors.New("ct: extra data truncated reading length of certificate")
+				}
+				l := int(x[0])<<16 | int(x[1])<<8 | int(x[2])
+				x = x[3:]
+
+				if len(x) < l {
+					return nil, errors.New("ct: extra data truncated reading certificate")
+				}
+				entry.ExtraCerts = append(entry.ExtraCerts, x[:l])
+				x = x[l:]
+			}
 		}
 	}
 
