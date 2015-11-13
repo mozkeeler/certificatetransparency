@@ -64,11 +64,58 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfahLEimAoz2t01p3uMziiLOl/fHT
 DM0YDOhBRuiBARsV4UvxG2LdNgoIGLrtCzWE0J5APC2em4JlvR8EEEFMoA==
 -----END PUBLIC KEY-----`
 
+const aviatorKeyPEM = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1/TMabLkDpCjiupacAlP7xNi0I1J
+YP8bQFAHDG1xhtolSY1l4QgNRzRrvSe8liE+NPWHdjGxfx3JhTsN9x8/6Q==
+-----END PUBLIC KEY-----`
+
+const rocketeerKeyPEM = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEIFsYyDzBi7MxCAC/oJBXK7dHjG+1
+aLCOkHjpoHPqTyghLpzA9BYbqvnV16mAw04vUjyYASVGJCUoI3ctBcJAeg==
+-----END PUBLIC KEY-----`
+
+const symantecKeyPEM = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEluqsHEYMG1XcDfy1lCdGV0JwOmkY
+4r87xNuroPS2bMBTP01CEDPwWJePa75y9CrsHEKqAy8afig1dpkIPSEUhg==
+-----END PUBLIC KEY-----`
+
+const izenpeKeyPEM = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEJ2Q5DC3cUBj4IQCiDu0s6j51up+T
+ZAkAEcQRF6tczw90rLWXkJMAW7jr9yc92bIKgV8vDXU4lDeZHvYHduDuvg==
+-----END PUBLIC KEY-----`
+
+const certlyKeyPEM = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECyPLhWKYYUgEc+tUXfPQB4wtGS2M
+NvXrjwFCCnyYJifBtd2Sk7Cu+Js9DNhMTh35FftHaHu6ZrclnNBKwmbbSA==
+-----END PUBLIC KEY-----`
+
+const digicertKeyPEM = `
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAkbFvhu7gkAW6MHSrBlpE1n4+HCF
+RkC5OLAjgqhkTH+/uzSfSl8ois8ZxAD2NgaTZe1M9akhYlrYkes4JECs6A==
+-----END PUBLIC KEY-----`
+
 // PilotLog is a *Log representing the pilot log run by Google.
 var PilotLog *Log
+var AviatorLog *Log
+var RocketeerLog *Log
+var SymantecLog *Log
+var IzenpeLog *Log
+var CertlyLog *Log
+var DigiCertLog *Log
 
 func init() {
-	PilotLog, _ = NewLog("http://ct.googleapis.com/pilot", pilotKeyPEM)
+	PilotLog, _ = NewLog("https://ct.googleapis.com/pilot", pilotKeyPEM)
+	AviatorLog, _ = NewLog("https://ct.googleapis.com/aviator", aviatorKeyPEM)
+	RocketeerLog, _ = NewLog("https://ct.googleapis.com/rocketeer", rocketeerKeyPEM)
+	SymantecLog, _ = NewLog("https://ct.ws.symantec.com", symantecKeyPEM)
+	CertlyLog, _ = NewLog("https://log.certly.io", certlyKeyPEM)
+	DigiCertLog, _ = NewLog("https://ct1.digicert-ct.com/log", digicertKeyPEM)
 }
 
 // SignedTreeHead contains a parsed signed tree-head structure.
