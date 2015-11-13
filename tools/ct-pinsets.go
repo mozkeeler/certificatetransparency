@@ -13,7 +13,7 @@ import (
 	"os"
 	"regexp"
 	//"strings"
-	"github.com/agl/certificatetransparency"
+	"github.com/mozkeeler/certificatetransparency"
 	"sync"
 )
 
