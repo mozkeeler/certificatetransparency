@@ -7,14 +7,14 @@ package main
 import (
 	"crypto/x509"
 	//"encoding/pem"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"github.com/agl/certificatetransparency"
 	"os"
 	"strings"
 	"sync"
-        "crypto/sha1"
-        "crypto/sha256"
-        "encoding/base64"
-	"github.com/agl/certificatetransparency"
 )
 
 func main() {
@@ -60,12 +60,12 @@ func main() {
 			outputLock.Lock()
 			fmt.Printf("CN:%s\n", cert.Subject.CommonName)
 			fmt.Printf("ISSUER:%s\n", cert.Issuer.CommonName)
-                        hasher := sha1.New()
-                        sha256hasher := sha256.New()
-                        hasher.Write(cert.RawSubjectPublicKeyInfo)
-                        sha256hasher.Write(cert.RawSubjectPublicKeyInfo)
-                        fmt.Printf("sha1/%s\n", base64.StdEncoding.EncodeToString(hasher.Sum(nil)));
-                        fmt.Printf("sha256/%s\n", base64.StdEncoding.EncodeToString(sha256hasher.Sum(nil)));
+			hasher := sha1.New()
+			sha256hasher := sha256.New()
+			hasher.Write(cert.RawSubjectPublicKeyInfo)
+			sha256hasher.Write(cert.RawSubjectPublicKeyInfo)
+			fmt.Printf("sha1/%s\n", base64.StdEncoding.EncodeToString(hasher.Sum(nil)))
+			fmt.Printf("sha256/%s\n", base64.StdEncoding.EncodeToString(sha256hasher.Sum(nil)))
 			for _, san := range cert.DNSNames {
 				fmt.Printf("DNS:%s\n", san)
 			}

@@ -5,16 +5,16 @@
 package main
 
 import (
-        "crypto/sha1"
+	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"os"
-        "regexp"
+	"regexp"
 	//"strings"
-	"sync"
 	"github.com/agl/certificatetransparency"
+	"sync"
 )
 
 func main() {
@@ -35,9 +35,9 @@ func main() {
 
 	outputLock := new(sync.Mutex)
 
-        //pinned_domains, _ := regexp.Compile("(.*[.])?mozilla[.](com|org|net)")
-        //pinned_domains, _ := regexp.Compile("(.*[.])?twitter[.](com|net)")
-        pinned_domains, _ := regexp.Compile("(.*[.])?google[.](com|net)")
+	//pinned_domains, _ := regexp.Compile("(.*[.])?mozilla[.](com|org|net)")
+	//pinned_domains, _ := regexp.Compile("(.*[.])?twitter[.](com|net)")
+	pinned_domains, _ := regexp.Compile("(.*[.])?google[.](com|net)")
 	// Dump
 	// - csv file of OCSP urls, one per line
 	// - csv file of CRL sets, one per line
@@ -54,17 +54,17 @@ func main() {
 		}
 
 		dump := false
-                if pinned_domains.MatchString(cert.Subject.CommonName) {
-                        dump = true
-                }
+		if pinned_domains.MatchString(cert.Subject.CommonName) {
+			dump = true
+		}
 		for _, san := range cert.DNSNames {
-                        if pinned_domains.MatchString(san) {
+			if pinned_domains.MatchString(san) {
 				dump = true
 			}
 		}
 		if dump {
-                        hasher := sha1.New()
-                        hasher.Write(cert.RawSubjectPublicKeyInfo)
+			hasher := sha1.New()
+			hasher.Write(cert.RawSubjectPublicKeyInfo)
 			outputLock.Lock()
 			fmt.Printf("CN:%s\n", cert.Subject.CommonName)
 			fmt.Printf("ISSUER:%s\n", cert.Issuer.CommonName)
@@ -77,8 +77,8 @@ func main() {
 			for _, san := range cert.OCSPServer {
 				fmt.Printf("OCSP:%s\n", san)
 			}
-                        pem.Encode(os.Stdout, &pem.Block{Type: "CERTIFICATE", Bytes: ent.Entry.X509Cert})
-                        fmt.Printf("SHA1:%s\n", base64.StdEncoding.EncodeToString(hasher.Sum(nil)));
+			pem.Encode(os.Stdout, &pem.Block{Type: "CERTIFICATE", Bytes: ent.Entry.X509Cert})
+			fmt.Printf("SHA1:%s\n", base64.StdEncoding.EncodeToString(hasher.Sum(nil)))
 			outputLock.Unlock()
 		}
 	})

@@ -78,7 +78,6 @@ func (f EntriesFile) readEntries(entries chan<- EntryAndPosition, limit uint64) 
 	return nil
 }
 
-
 func mapWorker(f func(*EntryAndPosition, error), entries <-chan EntryAndPosition, wg *sync.WaitGroup) {
 	// Call wg.Done right before returning
 	defer wg.Done()
