@@ -6,11 +6,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/mozkeeler/certificatetransparency"
 	"os"
 	"sync"
 	"time"
-
-	"github.com/mozkeeler/certificatetransparency"
 )
 
 func clearLine() {
@@ -50,11 +49,32 @@ func displayProgress(statusChan chan certificatetransparency.OperationStatus, wg
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <log entries file>\n", os.Args[0])
+	if len(os.Args) != 3 {
+		fmt.Fprintf(os.Stderr, "Usage: %s <log nickname> <log entries file>\n", os.Args[0])
 		os.Exit(1)
 	}
-	fileName := os.Args[1]
+	logName := os.Args[1]
+	fileName := os.Args[2]
+
+	var log *certificatetransparency.Log
+	if logName == "pilot" {
+		log = certificatetransparency.PilotLog
+	} else if logName == "aviator" {
+		log = certificatetransparency.AviatorLog
+	} else if logName == "rocketeer" {
+		log = certificatetransparency.RocketeerLog
+	} else if logName == "symantec" {
+		log = certificatetransparency.SymantecLog
+	} else if logName == "izenpe" {
+		log = certificatetransparency.IzenpeLog
+	} else if logName == "certly" {
+		log = certificatetransparency.CertlyLog
+	} else if logName == "digicert" {
+		log = certificatetransparency.DigiCertLog
+	} else {
+		fmt.Fprintf(os.Stderr, "Unknown log name '%s'\n", logName)
+		os.Exit(1)
+	}
 
 	out, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
@@ -73,7 +93,7 @@ func main() {
 	fmt.Printf("%d\n", count)
 
 	fmt.Printf("Fetching signed tree head... ")
-	sth, err := certificatetransparency.PilotLog.GetSignedTreeHead()
+	sth, err := log.GetSignedTreeHead()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
@@ -87,7 +107,7 @@ func main() {
 	statusChan := make(chan certificatetransparency.OperationStatus, 1)
 	wg := new(sync.WaitGroup)
 	displayProgress(statusChan, wg)
-	_, err = certificatetransparency.PilotLog.DownloadRange(out, statusChan, count, sth.Size)
+	_, err = log.DownloadRange(out, statusChan, count, sth.Size)
 	wg.Wait()
 
 	clearLine()
