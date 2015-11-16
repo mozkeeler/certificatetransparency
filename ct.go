@@ -114,6 +114,7 @@ func init() {
 	AviatorLog, _ = NewLog("https://ct.googleapis.com/aviator", aviatorKeyPEM)
 	RocketeerLog, _ = NewLog("https://ct.googleapis.com/rocketeer", rocketeerKeyPEM)
 	SymantecLog, _ = NewLog("https://ct.ws.symantec.com", symantecKeyPEM)
+	IzenpeLog, _ = NewLog("https://ct.izenpe.com", izenpeKeyPEM)
 	CertlyLog, _ = NewLog("https://log.certly.io", certlyKeyPEM)
 	DigiCertLog, _ = NewLog("https://ct1.digicert-ct.com/log", digicertKeyPEM)
 }
