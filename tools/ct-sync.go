@@ -51,6 +51,14 @@ func displayProgress(statusChan chan certificatetransparency.OperationStatus, wg
 func main() {
 	if len(os.Args) != 3 {
 		fmt.Fprintf(os.Stderr, "Usage: %s <log nickname> <log entries file>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Known logs:\n")
+		fmt.Fprintf(os.Stderr, "\taviator\n")
+		fmt.Fprintf(os.Stderr, "\tcertly\n")
+		fmt.Fprintf(os.Stderr, "\tdigicert\n")
+		fmt.Fprintf(os.Stderr, "\tizenpe\n")
+		fmt.Fprintf(os.Stderr, "\tpilot\n")
+		fmt.Fprintf(os.Stderr, "\trocketeer\n")
+		fmt.Fprintf(os.Stderr, "\tsymantec\n")
 		os.Exit(1)
 	}
 	logName := os.Args[1]
