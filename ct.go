@@ -7,7 +7,9 @@ package certificatetransparency
 import (
 	"bytes"
 	"compress/flate"
+	"crypto"
 	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
@@ -29,12 +31,13 @@ const (
 	treeHash             = 1
 	hashSHA256           = 4
 	sigECDSA             = 3
+	sigRSA               = 1
 )
 
 // Log represents a public log.
 type Log struct {
 	Root string
-	Key  *ecdsa.PublicKey
+	Key  crypto.PublicKey
 }
 
 // NewLog creates a new Log given the base URL of a public key and its public
@@ -50,12 +53,13 @@ func NewLog(url, pemPublicKey string) (*Log, error) {
 		return nil, err
 	}
 
-	ecdsaKey, ok := key.(*ecdsa.PublicKey)
-	if !ok {
-		return nil, errors.New("certificatetransparency: only ECDSA keys supported at the current time")
+	_, ecdsaSucceeded := key.(*ecdsa.PublicKey)
+	_, rsaSucceeded := key.(*rsa.PublicKey)
+	if !rsaSucceeded && !ecdsaSucceeded {
+		return nil, errors.New("certificatetransparency: only ECDSA or RSA keys supported at the current time")
 	}
 
-	return &Log{url, ecdsaKey}, nil
+	return &Log{url, key}, nil
 }
 
 const pilotKeyPEM = `
@@ -100,6 +104,18 @@ MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEAkbFvhu7gkAW6MHSrBlpE1n4+HCF
 RkC5OLAjgqhkTH+/uzSfSl8ois8ZxAD2NgaTZe1M9akhYlrYkes4JECs6A==
 -----END PUBLIC KEY-----`
 
+const venafiKeyPEM = `
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAolpIHxdSlTXLo1s6H1OC
+dpSj/4DyHDc8wLG9wVmLqy1lk9fz4ATVmm+/1iN2Nk8jmctUKK2MFUtlWXZBSpym
+97M7frGlSaQXUWyA3CqQUEuIJOmlEjKTBEiQAvpfDjCHjlV2Be4qTM6jamkJbiWt
+gnYPhJL6ONaGTiSPm7Byy57iaz/hbckldSOIoRhYBiMzeNoA0DiRZ9KmfSeXZ1rB
+8y8X5urSW+iBzf2SaOfzBvDpcoTuAaWx2DPazoOl28fP1hZ+kHUYvxbcMjttjauC
+Fx+JII0dmuZNIwjfeG/GBb9frpSX219k1O4Wi6OEbHEr8at/XQ0y7gTikOxBn/s5
+wQIDAQAB
+-----END PUBLIC KEY-----
+`
+
 // PilotLog is a *Log representing the pilot log run by Google.
 var PilotLog *Log
 var AviatorLog *Log
@@ -108,6 +124,7 @@ var SymantecLog *Log
 var IzenpeLog *Log
 var CertlyLog *Log
 var DigiCertLog *Log
+var VenafiLog *Log
 
 func init() {
 	PilotLog, _ = NewLog("https://ct.googleapis.com/pilot", pilotKeyPEM)
@@ -117,6 +134,7 @@ func init() {
 	IzenpeLog, _ = NewLog("https://ct.izenpe.com", izenpeKeyPEM)
 	CertlyLog, _ = NewLog("https://log.certly.io", certlyKeyPEM)
 	DigiCertLog, _ = NewLog("https://ct1.digicert-ct.com/log", digicertKeyPEM)
+	VenafiLog, _ = NewLog("https://ctlog.api.venafi.com/", venafiKeyPEM)
 }
 
 // SignedTreeHead contains a parsed signed tree-head structure.
@@ -126,6 +144,31 @@ type SignedTreeHead struct {
 	Hash      []byte    `json:"sha256_root_hash"`
 	Signature []byte    `json:"tree_head_signature"`
 	Timestamp uint64    `json:"timestamp"`
+}
+
+func verifyECDSASignature(key *ecdsa.PublicKey, signatureBytes []byte, digest []byte) error {
+	var sig struct {
+		R, S *big.Int
+	}
+	remainingBytes, err := asn1.Unmarshal(signatureBytes, &sig)
+	if err != nil {
+		return errors.New("certificatetransparency: failed to parse signature: " + err.Error())
+	}
+	if len(remainingBytes) > 0 {
+		return errors.New("certificatetransparency: trailing garbage after signature")
+	}
+	if !ecdsa.Verify(key, digest, sig.R, sig.S) {
+		return errors.New("certificatetransparency: signature verification failed")
+	}
+	return nil
+}
+
+func verifyRSASignature(key *rsa.PublicKey, hash crypto.Hash, signatureBytes []byte, digest []byte) error {
+	err := rsa.VerifyPKCS1v15(key, hash, digest, signatureBytes)
+	if err != nil {
+		return errors.New("certificatetransparency: signature verification failed: " + err.Error())
+	}
+	return nil
 }
 
 // GetSignedTreeHead fetches a signed tree-head and verifies the signature.
@@ -165,21 +208,11 @@ func (log *Log) GetSignedTreeHead() (*SignedTreeHead, error) {
 	if head.Signature[0] != hashSHA256 {
 		return nil, errors.New("certificatetransparency: unknown hash function")
 	}
-	if head.Signature[1] != sigECDSA {
+	expectedKeyType := head.Signature[1]
+	if expectedKeyType != sigECDSA && expectedKeyType != sigRSA {
 		return nil, errors.New("certificatetransparency: unknown signature algorithm")
 	}
-
 	signatureBytes := head.Signature[4:]
-	var sig struct {
-		R, S *big.Int
-	}
-
-	if signatureBytes, err = asn1.Unmarshal(signatureBytes, &sig); err != nil {
-		return nil, errors.New("certificatetransparency: failed to parse signature: " + err.Error())
-	}
-	if len(signatureBytes) > 0 {
-		return nil, errors.New("certificatetransparency: trailing garbage after signature")
-	}
 
 	// See https://tools.ietf.org/html/draft-laurie-pki-sunlight-09#section-3.5
 	signed := make([]byte, 2+8+8+32)
@@ -197,8 +230,25 @@ func (log *Log) GetSignedTreeHead() (*SignedTreeHead, error) {
 	h.Write(signed)
 	digest := h.Sum(nil)
 
-	if !ecdsa.Verify(log.Key, digest, sig.R, sig.S) {
-		return nil, errors.New("certificatetransparency: signature verification failed")
+	switch key := log.Key.(type) {
+	case *ecdsa.PublicKey:
+		if expectedKeyType != sigECDSA {
+			return nil, errors.New("certificatetransparency: key type/signature algorithm mismatch")
+		}
+		err = verifyECDSASignature(key, signatureBytes, digest)
+		if err != nil {
+			return nil, err
+		}
+	case *rsa.PublicKey:
+		if expectedKeyType != sigRSA {
+			return nil, errors.New("certificatetransparency: key type/signature algorithm mismatch")
+		}
+		err = verifyRSASignature(key, crypto.SHA256, signatureBytes, digest)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, errors.New("certificatetransparency: unknown key type")
 	}
 
 	return head, nil

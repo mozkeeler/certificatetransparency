@@ -59,6 +59,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\tpilot\n")
 		fmt.Fprintf(os.Stderr, "\trocketeer\n")
 		fmt.Fprintf(os.Stderr, "\tsymantec\n")
+		fmt.Fprintf(os.Stderr, "\tvenafi\n")
 		os.Exit(1)
 	}
 	logName := os.Args[1]
@@ -79,6 +80,8 @@ func main() {
 		log = certificatetransparency.CertlyLog
 	} else if logName == "digicert" {
 		log = certificatetransparency.DigiCertLog
+	} else if logName == "venafi" {
+		log = certificatetransparency.VenafiLog
 	} else {
 		fmt.Fprintf(os.Stderr, "Unknown log name '%s'\n", logName)
 		os.Exit(1)
